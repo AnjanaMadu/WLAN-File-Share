@@ -9,7 +9,6 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:mime/mime.dart';
 import '../models/disk_info.dart';
 import '../models/log_entry.dart';
-import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
