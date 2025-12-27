@@ -10,6 +10,12 @@ import 'package:mime/mime.dart';
 import '../models/disk_info.dart';
 import '../models/log_entry.dart';
 
+class _Item {
+  final String name;
+  final bool isFolder;
+  _Item(this.name, this.isFolder);
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -180,11 +186,17 @@ class _HomeScreenState extends State<HomeScreen> {
         _log("Using Root Handler for $rootPath");
         handler = (Request request) => _handleRootRequest(request, rootPath);
       } else {
-        handler = createStaticHandler(
+        // For Internal Storage:
+        // Use Cascade: Check for directory listing first, then file serving
+        final staticHandler = createStaticHandler(
           rootPath,
-          defaultDocument: 'index.html',
-          listDirectories: true,
+          listDirectories: false,
         );
+
+        handler = Cascade()
+            .add((req) => _handleInternalListing(req, rootPath))
+            .add(staticHandler)
+            .handler;
       }
 
       final pipeline = const Pipeline()
@@ -230,40 +242,17 @@ class _HomeScreenState extends State<HomeScreen> {
         return Response.notFound('Directory not found or access denied');
       }
 
-      final buffer = StringBuffer();
-      buffer.writeln('<html><head><title>Index of $relativePath</title>');
-      buffer.writeln(
-        '<meta name="viewport" content="width=device-width, initial-scale=1">',
-      );
-      buffer.writeln(
-        '<style>body{font-family:sans-serif;padding:20px;background:#0F172A;color:#F8FAFC} a{color:#38BDF8;text-decoration:none;display:block;padding:8px 0;border-bottom:1px solid #1E293B} a:hover{color:#fff}</style>',
-      );
-      buffer.writeln('</head><body>');
-      buffer.writeln('<h2>Index of /$decodedRelative</h2><hr>');
-
-      if (relativePath.isNotEmpty && relativePath != '/') {
-        buffer.writeln('<a href="../">../</a>');
-      }
-
       final lines = result.stdout.toString().split('\n');
+      final items = <_Item>[];
+
       for (var line in lines) {
         line = line.trim();
         if (line.isEmpty) continue;
-
-        final isFolder = line.endsWith('/');
-        final displayName = line;
-        final href = Uri.encodeComponent(line.replaceAll('/', ''));
-
-        buffer.writeln(
-          '<a href="$href${isFolder ? '/' : ''}">$displayName</a>',
-        );
+        items.add(_Item(line, line.endsWith('/')));
       }
 
-      buffer.writeln('</body></html>');
-      return Response.ok(
-        buffer.toString(),
-        headers: {'content-type': 'text/html'},
-      );
+      final html = _generateHtmlListing(decodedRelative, items);
+      return Response.ok(html, headers: {'content-type': 'text/html'});
     } else {
       final checkFile = await Process.run('su', ['-c', '[ -f "$fullPath" ]']);
       if (checkFile.exitCode != 0) {
@@ -282,6 +271,81 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       );
     }
+  }
+
+  Future<Response> _handleInternalListing(
+    Request request,
+    String rootPath,
+  ) async {
+    // Only handle if it maps to a directory
+    final segments = request.url.pathSegments;
+    if (segments.any((s) => s == '..' || s.contains('/') || s.contains('\\'))) {
+      return Response.forbidden('Invalid path');
+    }
+
+    final relativePath = request.url.path;
+    final decodedRelative = Uri.decodeComponent(relativePath);
+    var fullPath = "$rootPath/$decodedRelative";
+
+    // Clean
+    fullPath = fullPath.replaceAll('//', '/');
+
+    final dir = Directory(fullPath);
+    if (await dir.exists()) {
+      // List it
+      List<_Item> items = [];
+      try {
+        final entities = await dir.list().toList();
+        for (var e in entities) {
+          final name = e.path.split(Platform.pathSeparator).last;
+          final isDir = e is Directory;
+          items.add(_Item(isDir ? "$name/" : name, isDir));
+        }
+      } catch (e) {
+        // ignore access errors
+      }
+
+      // Sort: Folders first
+      items.sort((a, b) {
+        if (a.isFolder && !b.isFolder) return -1;
+        if (!a.isFolder && b.isFolder) return 1;
+        return a.name.compareTo(b.name);
+      });
+
+      final html = _generateHtmlListing(decodedRelative, items);
+      return Response.ok(html, headers: {'content-type': 'text/html'});
+    }
+
+    // Fallthrough to static handler
+    return Response.notFound('Not a directory');
+  }
+
+  String _generateHtmlListing(String relativePath, List<_Item> items) {
+    final buffer = StringBuffer();
+    buffer.writeln('<html><head><title>Index of $relativePath</title>');
+    buffer.writeln(
+      '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    );
+    buffer.writeln(
+      '<style>body{font-family:sans-serif;padding:20px;background:#0F172A;color:#F8FAFC} a{color:#38BDF8;text-decoration:none;display:block;padding:8px 0;border-bottom:1px solid #1E293B} a:hover{color:#fff}</style>',
+    );
+    buffer.writeln('</head><body>');
+    buffer.writeln('<h2>Index of /$relativePath</h2><hr>');
+
+    if (relativePath.isNotEmpty && relativePath != '/') {
+      buffer.writeln('<a href="../">../</a>');
+    }
+
+    for (var item in items) {
+      final displayName = item.name;
+      final href = Uri.encodeComponent(item.name.replaceAll('/', ''));
+      buffer.writeln(
+        '<a href="$href${item.isFolder ? '/' : ''}">$displayName</a>',
+      );
+    }
+
+    buffer.writeln('</body></html>');
+    return buffer.toString();
   }
 
   Future<void> _stopServer() async {
