@@ -2,17 +2,17 @@
 
 Hey there! 👋
 
-Welcome to **WLAN Share**, a simple yet powerful tool for sharing files over your local network directly from your Android device.
+Welcome to **WLAN Share**, your personal local NAS (Network Attached Storage) solution for Android.
 
-I built this because I often needed to quickly grab files from my external hard drives (OTG) connected to my phone without dealing with cloud uploads or slow Bluetooth transfers. This app turns your phone into a mini HTTP server, letting you browse and download your files from any browser on the same Wi-Fi.
+I built this to turn my phone into a true file server. Instead of just picking one folder, this app scans all your attached drives (internal, USB OTG, SD cards) and serves them all at once. It's like having a portable NAS in your pocket.
 
-## 🚀 Key Features
+## 🚀 cool stuff
 
-*   **Root Access Powered**: Unlike standard file managers, this app effectively uses Root access (Superuser) to read directly from `/mnt/media_rw` and `/data`, ensuring you can access *all* your mounted drives (USB OTG, SSDs, etc.).
-*   **Zero Configuration**: Just select your storage volume, pick your IP, and hit "START SERVER".
-*   **Modern UI**: A clean, professional Slate-themed interface that's easy on the eyes.
-*   **Power Efficient**: Simple start/stop control.
-*   **Web-Based Access**: No client app needed! Just open the URL in Chrome/Firefox/Edge on your PC.
+*   **full nas experience**: the web interface lists all your drives. click one to browse files.
+*   **root power**: uses `su` and `blkid` to find every connected disk, even the ones android hides.
+*   **friendly names**: identifies your drives by vendor and model (e.g. "Samsung SSD"), so you know what's what.
+*   **clean ui**: simple vertical list of drives, minimal "online/offline" status, and a sleek dark theme.
+*   **web access**: open the ip in any browser, see all your disks, download whatever you need.
 
 ## 🛠️ Requirements
 
