@@ -91,6 +91,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // scan with blkid
     try {
+      // optimization: get all mounted uuids at once
+      final mountResult = await Process.run('su', ['-c', 'ls /mnt/media_rw']);
+      final mountedUuids = mountResult.exitCode == 0
+          ? mountResult.stdout
+                .toString()
+                .split('\n')
+                .map((e) => e.trim())
+                .toSet()
+          : <String>{};
+
       final result = await Process.run('su', ['-c', 'blkid']);
       if (result.exitCode == 0) {
         final output = result.stdout.toString();
@@ -112,16 +122,12 @@ class _HomeScreenState extends State<HomeScreen> {
           if (uuidMatch == null) continue;
           final uuid = uuidMatch.group(1)!;
 
-          // checking if mounted in media_rw
-          final mountPath = "/mnt/media_rw/$uuid";
-          final checkDir = await Process.run('su', [
-            '-c',
-            '[ -d "$mountPath" ]',
-          ]);
-          if (checkDir.exitCode != 0) {
-            // not mounted properly
+          // check if uuid exists in mounted set
+          if (!mountedUuids.contains(uuid)) {
             continue;
           }
+
+          final mountPath = "/mnt/media_rw/$uuid";
 
           // finding friendly name
           // need 'sdg' from /dev/block/sdg1
