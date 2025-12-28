@@ -1,19 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:shelf/shelf.dart';
-import 'package:shelf/shelf_io.dart' as io;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:mime/mime.dart';
 import '../models/disk_info.dart';
 import '../models/log_entry.dart';
-
-class _Item {
-  final String name;
-  final bool isFolder;
-  _Item(this.name, this.isFolder);
-}
+import '../services/nas_server.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,13 +23,13 @@ class _HomeScreenState extends State<HomeScreen> {
   List<NetworkInterface> _interfaces = [];
   String? _selectedIP;
 
-  HttpServer? _server;
-  bool _isRunning = false;
-  final int _port = 8080;
+  NasServer? _nasServer;
+  bool get _isRunning => _nasServer?.isRunning ?? false;
 
   @override
   void initState() {
     super.initState();
+    _nasServer = NasServer(_log);
     _initApp();
   }
 
@@ -177,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _log("blkid failed: ${result.stderr}", isError: true);
       }
     } catch (e) {
-      _log("Scan error: $e", isError: true);
+      _log("Scan failed: $e", isError: true);
     }
 
     _log("Root scan found ${disks.length} volumes total.");
@@ -210,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggleServer() async {
-    if (_isRunning) {
+    if (_nasServer!.isRunning) {
       await _stopServer();
     } else {
       await _startServer();
@@ -224,230 +216,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      final handler = const Pipeline()
-          .addMiddleware(
-            logRequests(logger: (msg, isError) => _log(msg, isError: isError)),
-          )
-          .addHandler(_handleRequest);
-
-      _server = await io.serve(handler, _selectedIP!, _port);
-
-      setState(() {
-        _isRunning = true;
-      });
-
-      _log("NAS Server started on http://$_selectedIP:$_port");
+      await _nasServer!.start(_selectedIP!, _disks);
+      setState(() {}); // update UI
     } catch (e) {
-      _log("Failed to start server: $e", isError: true);
+      // logged in service
     }
-  }
-
-  Future<Response> _handleRequest(Request request) async {
-    if (request.url.path == '' || request.url.path == '/') {
-      return _serveDiskList();
-    }
-
-    final segments = request.url.pathSegments;
-    if (segments.isEmpty) return _serveDiskList();
-
-    final diskId = segments.first;
-
-    // find disk by uuid or path
-    final disk = _disks.firstWhere(
-      (d) =>
-          (d.uuid == diskId) ||
-          (diskId == 'internal' && d.path == '/storage/emulated/0'),
-      orElse: () => DiskInfo(name: '', path: '', icon: Icons.error),
-    );
-
-    if (disk.path.isEmpty) {
-      return Response.notFound('Disk not found');
-    }
-
-    // get relative path
-    final relativePath = segments.skip(1).join('/');
-    // reuse logic
-    return _handleDiskRequest(request, disk.path, relativePath);
-  }
-
-  Future<Response> _serveDiskList() async {
-    final buffer = StringBuffer();
-    buffer.writeln('<html><head><title>WLAN NAS</title>');
-    buffer.writeln(
-      '<meta name="viewport" content="width=device-width, initial-scale=1">',
-    );
-    buffer.writeln(
-      '<style>body{font-family:sans-serif;padding:20px;background:#0F172A;color:#F8FAFC} .disk{background:#1E293B;padding:15px;margin-bottom:10px;border-radius:8px;display:flex;align-items:center;} .disk:hover{background:#334155} a{text-decoration:none;color:inherit;display:block;} .icon{font-size:24px;margin-right:15px;color:#38BDF8} .name{font-weight:bold;font-size:16px} .meta{color:#94A3B8;font-size:12px}</style>',
-    );
-    buffer.writeln('</head><body>');
-    buffer.writeln('<h2>Available Storage</h2><hr>');
-
-    for (var disk in _disks) {
-      // use uuid or 'internal'
-      final id = disk.uuid ?? 'internal';
-
-      buffer.writeln('<a href="/$id/">');
-      buffer.writeln('<div class="disk">');
-      buffer.writeln('<div class="icon">💾</div>');
-      buffer.writeln('<div>');
-      buffer.writeln('<div class="name">${disk.friendlyName}</div>');
-      if (disk.uuid != null) {
-        buffer.writeln('<div class="meta">UUID: ${disk.uuid}</div>');
-      }
-      buffer.writeln('</div>');
-      buffer.writeln('</div>');
-      buffer.writeln('</a>');
-    }
-
-    buffer.writeln('</body></html>');
-    return Response.ok(
-      buffer.toString(),
-      headers: {'content-type': 'text/html'},
-    );
-  }
-
-  Future<Response> _handleDiskRequest(
-    Request request,
-    String rootPath,
-    String relativePath,
-  ) async {
-    // adapted logic for stripped path
-    if (relativePath.contains('..')) return Response.forbidden('Invalid path');
-
-    final useRoot =
-        rootPath.startsWith('/mnt/') ||
-        rootPath.startsWith('/data/'); // likely mapped
-
-    var fullPath = "$rootPath/$relativePath";
-    // cleanup path
-    fullPath = fullPath.replaceAll('//', '/');
-    if (fullPath.endsWith('/') && fullPath.length > 1) {
-      fullPath = fullPath.substring(0, fullPath.length - 1);
-    }
-
-    // check if file or dir
-    if (useRoot) {
-      final checkDir = await Process.run('su', ['-c', '[ -d "$fullPath" ]']);
-      if (checkDir.exitCode == 0) {
-        // listing dir
-        final result = await Process.run('su', ['-c', 'ls -1p "$fullPath"']);
-        if (result.exitCode != 0) return Response.notFound('Access denied');
-
-        final lines = result.stdout.toString().split('\n');
-        final items = <_Item>[];
-        for (var line in lines) {
-          line = line.trim();
-          if (line.isEmpty) continue;
-          items.add(_Item(line, line.endsWith('/')));
-        }
-        // keeping original path for links
-        return Response.ok(
-          _generateHtmlListing(relativePath, items, request.url.path),
-          headers: {'content-type': 'text/html'},
-        );
-      } else {
-        // checking file
-        final checkFile = await Process.run('su', ['-c', '[ -f "$fullPath" ]']);
-        if (checkFile.exitCode != 0) return Response.notFound('Not found');
-
-        final mimeType = lookupMimeType(fullPath) ?? 'application/octet-stream';
-        final process = await Process.start('su', ['-c', 'cat "$fullPath"']);
-        return Response.ok(
-          process.stdout,
-          headers: {
-            'content-type': mimeType,
-            'content-disposition':
-                'inline; filename="${fullPath.split('/').last}"',
-          },
-        );
-      }
-    } else {
-      // treating internal storage like regular fs
-      final dir = Directory(fullPath);
-      if (await dir.exists()) {
-        final entities = await dir.list().toList();
-        final items = entities.map((e) {
-          final name = e.path.split(Platform.pathSeparator).last;
-          final isDir = e is Directory;
-          return _Item(isDir ? "$name/" : name, isDir);
-        }).toList();
-
-        items.sort(
-          (a, b) => a.isFolder == b.isFolder
-              ? a.name.compareTo(b.name)
-              : (a.isFolder ? -1 : 1),
-        );
-        return Response.ok(
-          _generateHtmlListing(relativePath, items, request.url.path),
-          headers: {'content-type': 'text/html'},
-        );
-      }
-
-      final file = File(fullPath);
-      if (await file.exists()) {
-        final mimeType = lookupMimeType(fullPath) ?? 'application/octet-stream';
-        return Response.ok(
-          file.openRead(),
-          headers: {
-            'content-type': mimeType,
-            'content-disposition':
-                'inline; filename="${fullPath.split('/').last}"',
-          },
-        );
-      }
-      return Response.notFound('Not found');
-    }
-  }
-
-  String _generateHtmlListing(
-    String relativePath,
-    List<_Item> items,
-    String currentUrlPath,
-  ) {
-    final buffer = StringBuffer();
-    buffer.writeln('<html><head><title>Index of $relativePath</title>');
-    buffer.writeln(
-      '<meta name="viewport" content="width=device-width, initial-scale=1">',
-    );
-    buffer.writeln(
-      '<style>body{font-family:sans-serif;padding:20px;background:#0F172A;color:#F8FAFC} a{color:#38BDF8;text-decoration:none;display:block;padding:8px 0;border-bottom:1px solid #1E293B} a:hover{color:#fff}</style>',
-    );
-    buffer.writeln('</head><body>');
-    buffer.writeln('<h2>Index of /$relativePath</h2><hr>');
-
-    if (relativePath.isNotEmpty && relativePath != '/') {
-      buffer.writeln('<a href="../">../</a>');
-    } else {
-      // link to disk list
-      buffer.writeln('<a href="/">← Back to Disk List</a>');
-    }
-
-    for (var item in items) {
-      final displayName = item.name;
-      // fix url path
-      final href = Uri.encodeComponent(item.name.replaceAll('/', ''));
-      // dynamic root relative linking
-      buffer.writeln(
-        '<a href="$href${item.isFolder ? '/' : ''}">$displayName</a>',
-      );
-    }
-
-    buffer.writeln('</body></html>');
-    return buffer.toString();
   }
 
   Future<void> _stopServer() async {
-    try {
-      await _server?.close(force: true);
-      setState(() {
-        _isRunning = false;
-        _server = null;
-      });
-
-      _log("Server stopped");
-    } catch (e) {
-      _log("Error stopping server: $e", isError: true);
-    }
+    await _nasServer!.stop();
+    setState(() {}); // update UI
   }
 
   @override

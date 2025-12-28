@@ -8,11 +8,14 @@ I built this to turn my phone into a true file server. Instead of just picking o
 
 ## 🚀 cool stuff
 
-*   **full nas experience**: the web interface lists all your drives. click one to browse files.
-*   **root power**: uses `su` and `blkid` to find every connected disk, even the ones android hides.
-*   **friendly names**: identifies your drives by vendor and model (e.g. "Samsung SSD"), so you know what's what.
-*   **clean ui**: simple vertical list of drives, minimal "online/offline" status, and a sleek dark theme.
-*   **web access**: open the ip in any browser, see all your disks, download whatever you need.
+*   **Full NAS Power**: Browse, Download, Upload, Delete, and Create Folders. It's a two-way street now.
+*   **Root Streaming**: Pipes data directly to/from external drives using root. Ultra-efficient for large files.
+*   **Modern Web UI**: Drag-and-drop file uploads with a sleek dark-themed interface.
+*   **Upload Stats**: Real-time progress bar with live speed in MB/s.
+*   **Multi-Disk Support**: Automatically discovers internal storage and every connected USB/SD drive.
+*   **Friendly Names**: Identifies your drives by vendor/model (e.g., "Samsung Portable SSD").
+*   **Native & Root**: Smart enough to use native functions for Internal Storage and `su` only for external drives.
+
 
 ## 🛠️ Requirements
 

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WLAN NAS</title>
+    <style>
+        :root {
+            --bg: #0F172A;
+            --card: #1E293B;
+            --border: #334155;
+            --text: #F8FAFC;
+            --subtext: #94A3B8;
+            --accent: #38BDF8;
+            --danger: #EF4444;
+            --success: #22C55E;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .breadcrumbs {
+            color: var(--subtext);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        button.primary {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        button.primary:hover {
+            opacity: 0.9;
+            color: var(--bg);
+        }
+
+        .file-list {
+            background: var(--card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.1s;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-item:hover {
+            background: #263345;
+        }
+
+        .icon {
+            font-size: 20px;
+            margin-right: 15px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .name {
+            flex-grow: 1;
+            text-decoration: none;
+            color: inherit;
+            font-weight: 500;
+        }
+
+        .name:hover {
+            color: var(--accent);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .file-item:hover .actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: none;
+            color: var(--subtext);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 16px;
+        }
+
+        .action-btn:hover {
+            color: var(--danger);
+            transform: scale(1.1);
+        }
+
+        .drop-zone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .drop-zone.active {
+            display: flex;
+        }
+
+        .drop-message {
+            border: 3px dashed var(--accent);
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        #upload-progress {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--card);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            width: 300px;
+            display: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+        }
+
+        #upload-filename {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 10px;
+        }
+
+        .progress-bar-container {
+            height: 6px;
+            background: var(--bg);
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <div>
+                <h1>Files</h1>
+                <div class="breadcrumbs">Location: <span id="current-path">{{CURRENT_PATH}}</span></div>
+            </div>
+            <div class="toolbar">
+                <button onclick="createFolder()">+ New Folder</button>
+                <button class="primary" onclick="document.getElementById('file-input').click()">Upload File</button>
+                <input type="file" id="file-input" multiple style="display:none" onchange="handleFiles(this.files)">
+            </div>
+        </header>
+
+        <div class="file-list">
+            {{FILE_LIST}}
+        </div>
+    </div>
+
+    <div class="drop-zone" id="drop-zone">
+        <div class="drop-message">
+            <h2 style="color:var(--accent)">Drop files to upload</h2>
+        </div>
+    </div>
+
+    <div id="upload-progress">
+        <div style="display:flex; justify-content:space-between; align-items: baseline; margin-bottom:5px;">
+            <span id="upload-filename">Uploading...</span>
+            <div style="text-align: right; display: flex; align-items: baseline;">
+                <span id="upload-speed" style="font-size: 11px; color: var(--subtext); margin-right: 8px;">0.0
+                    MB/s</span>
+                <span id="upload-percent" style="font-weight: bold; min-width: 35px;">0%</span>
+            </div>
+        </div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-fill"></div>
+        </div>
+    </div>
+
+    <script>
+        const currentPath = "{{CURRENT_PATH_ENCODED}}"; // encoded path for API calls
+
+        // Drag and Drop
+        const dropZone = document.getElementById('drop-zone');
+
+        window.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('active');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            if (e.relatedTarget === null) {
+                dropZone.classList.remove('active');
+            }
+        });
+
+        window.addEventListener('dragover', (e) => e.preventDefault());
+
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            Array.from(files).forEach(uploadFile);
+        }
+
+        function uploadFile(file) {
+            const url = window.location.pathname.endsWith('/')
+                ? window.location.pathname + file.name
+                : window.location.pathname + '/' + file.name;
+
+            // Show progress UI
+            const progressBox = document.getElementById('upload-progress');
+            const filenameSpan = document.getElementById('upload-filename');
+            const percentSpan = document.getElementById('upload-percent');
+            const fill = document.getElementById('progress-fill');
+
+            progressBox.style.display = 'block';
+            filenameSpan.textContent = file.name;
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', url, true);
+
+            const startTime = Date.now();
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const now = Date.now();
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    percentSpan.textContent = percent + '%';
+                    fill.style.width = percent + '%';
+
+                    // Speed calculation (Average)
+                    const elapsed = (now - startTime) / 1000; // seconds
+                    if (elapsed > 0) {
+                        const speed = (e.loaded / 1024 / 1024) / elapsed; // MB/s
+                        document.getElementById('upload-speed').textContent = speed.toFixed(1) + ' MB/s';
+                    }
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    // Success
+                    setTimeout(() => {
+                        progressBox.style.display = 'none';
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    alert('Upload failed: ' + xhr.responseText);
+                    progressBox.style.display = 'none';
+                }
+            };
+
+            xhr.onerror = () => {
+                alert('Network error during upload');
+                progressBox.style.display = 'none';
+            };
+
+            xhr.send(file);
+        }
+
+        function createFolder() {
+            const name = prompt("Enter folder name:");
+            if (!name) return;
+
+            // Use path relative to current URL
+            // If current path is /uuid/folder/, new folder is /uuid/folder/name
+            // Wait, the API spec said "2 APIs". 
+            // Let's assume endpoint: /api/mkdir?path=<FullVirtualPath>
+
+            // Actually, cleaner to POST to current URL with special header or query
+            // But let's stick to the prompt's "2 APIs" idea.
+            // We probably need to send the full virtual path (the URL path basically).
+
+            const virtualPath = currentPath + (currentPath.endsWith('/') ? '' : '/') + encodeURIComponent(name);
+
+            fetch('/api/mkdir?path=' + virtualPath, { method: 'POST' })
+                .then(res => {
+                    if (res.ok) window.location.reload();
+                    else res.text().then(t => alert('Error: ' + t));
+                });
+        }
+
+        function deleteItem(name) {
+            if (!confirm('Delete ' + name + '?')) return;
+
+            const virtualPath = currentPath + (currentPath.endsWith('/') ? '' : '/') + encodeURIComponent(name);
+
+            fetch('/api/delete?path=' + virtualPath, { method: 'DELETE' }) // or POST /api/delete?path=...
+                .then(res => {
+                    if (res.ok) window.location.reload();
+                    else res.text().then(t => alert('Error: ' + t));
+                });
+        }
+    </script>
+
+</body>
+
+</html>
