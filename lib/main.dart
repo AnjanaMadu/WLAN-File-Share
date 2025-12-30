@@ -15,6 +15,7 @@ class FileShareApp extends StatelessWidget {
       title: 'WLAN File Share',
       theme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'sans-serif',
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF38BDF8),
           brightness: Brightness.dark,
