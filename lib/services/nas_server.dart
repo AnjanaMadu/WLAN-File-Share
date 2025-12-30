@@ -103,6 +103,11 @@ class NasServer {
       return _handleDelete(targetPath, disks);
     }
 
+    // Serve Static Web Assets
+    if (path.startsWith('web-assets/')) {
+      return _serveStaticAsset(path);
+    }
+
     if (path == '' || path == '/') {
       return _serveDiskList(disks);
     }
@@ -140,6 +145,21 @@ class NasServer {
     );
   }
 
+  Future<Response> _serveStaticAsset(String path) async {
+    final assetPath = path.replaceFirst('web-assets/', 'assets/web/');
+    try {
+      final bytes = await rootBundle.load(assetPath);
+      final mimeType = lookupMimeType(assetPath) ?? 'application/octet-stream';
+      return Response.ok(
+        bytes.buffer.asUint8List(),
+        headers: {'content-type': mimeType},
+      );
+    } catch (e) {
+      _logger("Asset not found: $assetPath", isError: true);
+      return Response.notFound('Asset not found');
+    }
+  }
+
   Stream<List<int>> _trackStream(Stream<List<int>> stream) {
     return stream.map((data) {
       _totalBytesInWindow += data.length;
@@ -153,9 +173,10 @@ class NasServer {
 
     for (var disk in disks) {
       final id = disk.uuid ?? 'internal';
+      final icon = disk.uuid == null ? 'smartphone' : 'hard-drive';
       buffer.writeln('''
         <div class="file-item">
-            <div class="icon">💾</div>
+            <div class="icon"><i data-lucide="$icon"></i></div>
             <a href="/$id/" class="name">${disk.friendlyName} <span style="color:#64748B;font-size:12px;">($id)</span></a>
         </div>
       ''');
@@ -273,14 +294,14 @@ class NasServer {
     if (relativePath.isNotEmpty && relativePath != '/') {
       buffer.writeln('''
             <div class="file-item">
-                <div class="icon">📁</div>
+                <div class="icon"><i data-lucide="arrow-left"></i></div>
                 <a href="../" class="name">..</a>
             </div>
          ''');
     } else {
       buffer.writeln('''
             <div class="file-item">
-                <div class="icon">🏠</div>
+                <div class="icon"><i data-lucide="home"></i></div>
                 <a href="/" class="name">All Disks</a>
             </div>
          ''');
@@ -299,16 +320,16 @@ class NasServer {
       line = line.trim();
       final isDir = line.endsWith('/');
       final name = isDir ? line.substring(0, line.length - 1) : line;
-      final icon = isDir ? '📁' : '📄';
+      final icon = isDir ? 'folder' : 'file';
       final href = Uri.encodeComponent(name);
       final link = isDir ? '$href/' : href;
 
       buffer.writeln('''
             <div class="file-item">
-                <div class="icon">$icon</div>
+                <div class="icon"><i data-lucide="$icon"></i></div>
                 <a href="$link" class="name">$name</a>
                 <div class="actions">
-                     <button class="action-btn" onclick="deleteItem('$name')" title="Delete">🗑️</button>
+                     <button class="action-btn" onclick="deleteItem('$name')" title="Delete"><i data-lucide="trash-2" size="18"></i></button>
                 </div>
             </div>
          ''');
