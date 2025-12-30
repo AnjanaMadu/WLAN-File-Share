@@ -21,12 +21,12 @@
     box-sizing: border-box;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
-    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background-color: var(--bg);
-    background-image: 
+    background-image:
         radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.05) 0%, transparent 50%),
         radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.05) 0%, transparent 50%);
     color: var(--text);
@@ -35,37 +35,37 @@ body {
 }
 
 .container {
-    max-width: 1000px;
+    max-width: 900px;
     margin: 0 auto;
-    padding: 40px 20px;
+    padding: 24px 16px;
 }
 
 header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 40px;
+    align-items: center;
+    margin-bottom: 24px;
 }
 
 h1 {
     margin: 0;
-    font-size: 32px;
+    font-size: 24px;
     font-weight: 700;
     letter-spacing: -0.02em;
 }
 
 .breadcrumbs {
     color: var(--subtext);
-    font-size: 14px;
-    margin-top: 8px;
+    font-size: 13px;
+    margin-top: 4px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .toolbar {
     display: flex;
-    gap: 12px;
+    gap: 8px;
 }
 
 button {
@@ -73,20 +73,20 @@ button {
     backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 10px 18px;
-    border-radius: 12px;
+    padding: 8px 14px;
+    border-radius: 10px;
     cursor: pointer;
-    font-weight: 500;
-    font-size: 14px;
+    font-weight: 600;
+    font-size: 13px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 button:hover {
     border-color: var(--accent);
-    box-shadow: 0 0 20px var(--accent-glow);
+    box-shadow: 0 0 15px var(--accent-glow);
     transform: translateY(-1px);
 }
 
@@ -94,37 +94,37 @@ button.primary {
     background: var(--accent);
     color: #000;
     border-color: var(--accent);
-    font-weight: 600;
 }
 
 button.primary:hover {
     opacity: 0.9;
-    box-shadow: 0 0 25px var(--accent-glow);
+    box-shadow: 0 0 20px var(--accent-glow);
 }
 
 .file-list {
     background: var(--card);
     backdrop-filter: blur(12px);
-    border-radius: 20px;
+    border-radius: 16px;
     border: 1px solid var(--border);
     overflow: hidden;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
 }
 
 .list-header {
-    padding: 16px 24px;
-    font-size: 12px;
+    padding: 12px 20px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--subtext);
     border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .file-item {
     display: flex;
     align-items: center;
-    padding: 14px 24px;
+    padding: 10px 20px;
     border-bottom: 1px solid var(--border);
     transition: all 0.2s;
 }
@@ -141,12 +141,17 @@ button.primary:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 10px;
-    margin-right: 18px;
+    border-radius: 8px;
+    margin-right: 14px;
     color: var(--accent);
+}
+
+.icon svg {
+    width: 18px;
+    height: 18px;
 }
 
 .name {
@@ -154,8 +159,11 @@ button.primary:hover {
     text-decoration: none;
     color: inherit;
     font-weight: 500;
-    font-size: 16px;
+    font-size: 14px;
     transition: color 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .name:hover {
@@ -164,9 +172,9 @@ button.primary:hover {
 
 .actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     opacity: 0;
-    transform: translateX(10px);
+    transform: translateX(5px);
     transition: all 0.2s;
 }
 
@@ -180,8 +188,8 @@ button.primary:hover {
     border: none;
     color: var(--subtext);
     cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
+    padding: 6px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -191,7 +199,6 @@ button.primary:hover {
 .action-btn:hover {
     background: rgba(239, 68, 68, 0.1);
     color: var(--danger);
-    transform: scale(1.05);
 }
 
 .drop-zone {
@@ -206,7 +213,7 @@ button.primary:hover {
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    padding: 40px;
+    padding: 20px;
 }
 
 .drop-zone.active {
@@ -217,44 +224,51 @@ button.primary:hover {
     border: 2px dashed var(--accent);
     width: 100%;
     height: 100%;
-    max-width: 800px;
-    max-height: 400px;
-    border-radius: 30px;
+    max-width: 600px;
+    max-height: 300px;
+    border-radius: 20px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
     pointer-events: none;
-    gap: 20px;
+    gap: 16px;
 }
 
 #upload-progress {
     position: fixed;
-    bottom: 30px;
-    right: 30px;
+    bottom: 20px;
+    right: 20px;
     background: var(--card);
     backdrop-filter: blur(20px);
-    padding: 20px;
-    border-radius: 16px;
+    padding: 16px;
+    border-radius: 14px;
     border: 1px solid var(--border);
-    width: 360px;
+    width: 320px;
     display: none;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
     z-index: 2000;
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(10px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .progress-info {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .file-info {
@@ -265,7 +279,7 @@ button.primary:hover {
 #upload-filename {
     display: block;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -273,20 +287,20 @@ button.primary:hover {
 }
 
 .speed-info {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--subtext);
     font-family: monospace;
 }
 
 #upload-percent {
     font-weight: 700;
-    font-size: 18px;
+    font-size: 16px;
     color: var(--accent);
-    margin-left: 15px;
+    margin-left: 12px;
 }
 
 .progress-bar-container {
-    height: 8px;
+    height: 6px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 100px;
     overflow: hidden;
