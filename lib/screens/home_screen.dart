@@ -288,7 +288,42 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (_isRunning) ...[
+                          StreamBuilder<double>(
+                            stream: _nasServer?.speedStream,
+                            builder: (context, snapshot) {
+                              final speed = snapshot.data ?? 0.0;
+                              return Row(
+                                children: [
+                                  Icon(
+                                    Icons.speed_rounded,
+                                    size: 14,
+                                    color: accentCol.withOpacity(0.8),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "${speed.toStringAsFixed(2)} MB/s",
+                                    style: TextStyle(
+                                      color: textCol.withOpacity(0.9),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Container(
+                                    width: 1,
+                                    height: 12,
+                                    color: Colors.white.withOpacity(0.1),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
                         Icon(
                           Icons.circle,
                           size: 8,
@@ -312,6 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+
               const SizedBox(height: 30),
 
               Row(

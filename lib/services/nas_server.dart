@@ -14,6 +14,14 @@ class NasServer {
   final int _port = 8080;
   final Function(String, {bool isError}) _logger;
 
+  // Speed Tracking
+  final StreamController<double> _speedController =
+      StreamController<double>.broadcast();
+  int _totalBytesInWindow = 0;
+  Timer? _speedTimer;
+
+  Stream<double> get speedStream => _speedController.stream;
+
   // Cache for the HTML template
   String? _htmlTemplate;
 
@@ -50,6 +58,14 @@ class NasServer {
       _isRunning = true;
       _logger("Nas Server started on http://$ip:$_port");
       _logger("Serving ${disks.length} disks");
+
+      // Start Speed Tracking Timer
+      _totalBytesInWindow = 0;
+      _speedTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        final double speedMBps = _totalBytesInWindow / (1024 * 1024);
+        _speedController.add(speedMBps);
+        _totalBytesInWindow = 0; // Reset for next second
+      });
     } catch (e) {
       _logger("Failed to start server: $e", isError: true);
       rethrow;
@@ -61,6 +77,9 @@ class NasServer {
       await _server?.close(force: true);
       _server = null;
       _isRunning = false;
+      _speedTimer?.cancel();
+      _speedTimer = null;
+      _speedController.add(0.0); // Reset speed on stop
       _logger("Server stopped");
     } catch (e) {
       _logger("Error stopping server: $e", isError: true);
@@ -119,6 +138,13 @@ class NasServer {
       request.url.path,
       isInternal,
     );
+  }
+
+  Stream<List<int>> _trackStream(Stream<List<int>> stream) {
+    return stream.map((data) {
+      _totalBytesInWindow += data.length;
+      return data;
+    });
   }
 
   Future<Response> _serveDiskList(List<DiskInfo> disks) async {
@@ -192,7 +218,7 @@ class NasServer {
       if (!isInternal) {
         final process = await Process.start('su', ['-c', 'cat "$fullPath"']);
         return Response.ok(
-          process.stdout,
+          _trackStream(process.stdout),
           headers: {
             'content-type': mimeType,
             'content-disposition':
@@ -202,7 +228,7 @@ class NasServer {
       } else {
         final file = File(fullPath);
         return Response.ok(
-          file.openRead(),
+          _trackStream(file.openRead()),
           headers: {
             'content-type': mimeType,
             'content-disposition':
@@ -311,16 +337,18 @@ class NasServer {
     try {
       if (!isInternal) {
         final process = await Process.start('su', ['-c', 'cat > "$fullPath"']);
-        await process.stdin.addStream(request.read());
+        await process.stdin.addStream(_trackStream(request.read()));
         await process.stdin.close();
+
         final exitCode = await process.exitCode;
         if (exitCode != 0) throw "Exit code $exitCode";
       } else {
         final file = File(fullPath);
         final sink = file.openWrite();
-        await sink.addStream(request.read());
+        await sink.addStream(_trackStream(request.read()));
         await sink.close();
       }
+
       return Response.ok('Uploaded');
     } catch (e) {
       _logger("Upload failed: $e", isError: true);
